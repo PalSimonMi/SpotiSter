@@ -29,12 +29,22 @@ export function useAuth() {
 
   const login = async () => {
     setState((prev) => ({ ...prev, isLoading: true }));
-    const tokens = await loginWithSpotify();
-    setState({
-      isAuthenticated: !!tokens,
-      isLoading: false,
-      tokens,
-    });
+
+    try {
+      const tokens = await loginWithSpotify();
+
+      setState({
+        isAuthenticated: !!tokens,
+        isLoading: false,
+        tokens,
+      });
+    } catch {
+      setState({
+        isAuthenticated: false,
+        isLoading: false,
+        tokens: null,
+      });
+    }
   };
 
   const logout = async () => {

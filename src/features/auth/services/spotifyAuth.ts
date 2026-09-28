@@ -7,17 +7,25 @@ import { AuthTokens } from "../../../shared/types";
 
 WebBrowser.maybeCompleteAuthSession();
 
+const TOKEN_STORAGE_KEY = "spotify_tokens";
+
 const discovery = {
   authorizationEndpoint: SPOTIFY.AUTH_ENDPOINT,
   tokenEndpoint: SPOTIFY.TOKEN_ENDPOINT,
 };
 
-export async function loginWithSpotify(): Promise<AuthTokens | null> {
-  const redirectUri = AuthSession.makeRedirectUri({
-    scheme: "spotister",
-    path: "callback",
+function getRedirectUri() {
+  return AuthSession.makeRedirectUri({
+    native: ENV.SPOTIFY_REDIRECT_URI,
   });
-  console.log("Actual redirect URI:", redirectUri);
+}
+
+async function saveTokens(tokens: AuthTokens) {
+  await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
+}
+
+export async function loginWithSpotify(): Promise<AuthTokens | null> {
+  const redirectUri = getRedirectUri();
 
   const authRequest = new AuthSession.AuthRequest({
     clientId: ENV.SPOTIFY_CLIENT_ID,
@@ -38,7 +46,7 @@ export async function loginWithSpotify(): Promise<AuthTokens | null> {
       code: result.params.code,
       redirectUri,
       extraParams: {
-        code_verifier: authRequest.codeVerifier || "",
+        code_verifier: authRequest.codeVerifier ?? "",
       },
     },
     discovery
@@ -50,24 +58,51 @@ export async function loginWithSpotify(): Promise<AuthTokens | null> {
     expiresAt: Date.now() + (tokenResult.expiresIn ?? 3600) * 1000,
   };
 
-  await SecureStore.setItemAsync("spotify_tokens", JSON.stringify(tokens));
+  await saveTokens(tokens);
   return tokens;
 }
 
 export async function getStoredTokens(): Promise<AuthTokens | null> {
-  const raw = await SecureStore.getItemAsync("spotify_tokens");
-  if (!raw) return null;
+  const raw = await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
 
-  const tokens: AuthTokens = JSON.parse(raw);
-
-  // Simple expiry check (we’ll improve this later)
-  if (Date.now() >= tokens.expiresAt) {
+  if (!raw) {
     return null;
   }
 
-  return tokens;
+  const tokens: AuthTokens = JSON.parse(raw);
+
+  if (Date.now() < tokens.expiresAt - 60_000) {
+    return tokens;
+  }
+
+  if (!tokens.refreshToken) {
+    await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
+    return null;
+  }
+
+  const refreshed = await AuthSession.refreshAsync(
+    {
+      clientId: ENV.SPOTIFY_CLIENT_ID,
+      refreshToken: tokens.refreshToken,
+    },
+    discovery
+  );
+
+  const updatedTokens: AuthTokens = {
+    accessToken: refreshed.accessToken,
+    refreshToken: refreshed.refreshToken ?? tokens.refreshToken,
+    expiresAt: Date.now() + (refreshed.expiresIn ?? 3600) * 1000,
+  };
+
+  await saveTokens(updatedTokens);
+  return updatedTokens;
+}
+
+export async function getValidAccessToken(): Promise<string | null> {
+  const tokens = await getStoredTokens();
+  return tokens?.accessToken ?? null;
 }
 
 export async function logout() {
-  await SecureStore.deleteItemAsync("spotify_tokens");
+  await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
 }

@@ -2,9 +2,10 @@ export const SPOTIFY = {
   SCOPES: [
     "user-read-email",
     "user-read-private",
-    "streaming",
+    //"streaming",
     "user-modify-playback-state",
     "user-read-playback-state",
+    "app-remote-control",
   ],
   AUTH_ENDPOINT: "https://accounts.spotify.com/authorize",
   TOKEN_ENDPOINT: "https://accounts.spotify.com/api/token",
