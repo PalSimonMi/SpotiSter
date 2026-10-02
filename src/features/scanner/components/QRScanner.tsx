@@ -31,7 +31,7 @@ export function QRScanner({
       <View style={styles.center}>
         <Text style={styles.title}>Camera access is required</Text>
         <Text style={styles.message}>
-          SpotiSter uses the camera only to read Spotify QR codes.
+          SpotiSter uses the camera only to read music card QR codes.
         </Text>
 
         <Pressable style={styles.button} onPress={requestPermission}>

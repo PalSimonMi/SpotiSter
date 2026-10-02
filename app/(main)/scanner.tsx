@@ -1,10 +1,13 @@
 import { Redirect } from "expo-router";
+import { useKeepAwake } from "expo-keep-awake";
 import { StyleSheet, Text, View } from "react-native";
 import { QRScanner } from "../../src/features/scanner/components/QRScanner";
 import { useQRScanner } from "../../src/features/scanner/hooks/useQRScanner";
 import { useAuth } from "../../src/features/auth/hooks/useAuth";
 
 export default function ScannerScreen() {
+  useKeepAwake();
+
   const { isAuthenticated, isLoading } = useAuth();
   const { message, isProcessing, handleScan } = useQRScanner();
 
@@ -18,7 +21,7 @@ export default function ScannerScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Scan Spotify QR</Text>
+      <Text style={styles.title}>Scan Music Card</Text>
 
       <QRScanner
         message={message}
